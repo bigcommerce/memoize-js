@@ -1,5 +1,7 @@
 # @bigcommerce/memoize
 
+[![CircleCI](https://circleci.com/gh/bigcommerce/memoize-js.svg?style=svg)](https://circleci.com/gh/bigcommerce/memoize-js)
+
 This library can be used to memoize the result of a pure function. 
 
 Unlike the default `memoize` function provided by Lodash, it can be applied to functions that accept multiple non-primitive arguments. It can also be configured to expire its cache after certain number of unique calls. By default, it compares object-based arguments shallowly; but it can be configured to compare arguments strictly or deeply depending on your usage requirement.
