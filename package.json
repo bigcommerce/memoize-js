@@ -1,0 +1,52 @@
+{
+  "name": "@bigcommerce/memoize",
+  "version": "0.0.0",
+  "description": "A JavaScript library for memoizing the result of a pure function",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/bigcommerce/memoize-js.git"
+  },
+  "author": "BigCommerce",
+  "bugs": {
+    "url": "https://github.com/bigcommerce/memoize-js/issues"
+  },
+  "homepage": "https://github.com/bigcommerce/memoize-js",
+  "scripts": {
+    "prebuild": "rm -rf lib",
+    "build": "tsc --outDir lib --project tsconfig.json",
+    "lint": "tslint 'src/**/*.ts' --config tslint.json --project tsconfig.json && tsc --noEmit",
+    "prepare": "check-node-version --node '>=10' --npm '>=6' && npm run build",
+    "prerelease": "git fetch --tags && npm run validate-commits && npm run lint && npm test",
+    "release": "standard-version",
+    "postrelease": "npm publish --access public && git push --follow-tags",
+    "test": "jest --config jest-config.js",
+    "test:coverage": "npm test -- --coverage",
+    "test:series": "npm test -- --runInBand",
+    "test:watch": "npm test -- --watch",
+    "validate-commits": "validate-commits"
+  },
+  "dependencies": {
+    "@types/lodash.memoize": "^4.1.6",
+    "@types/shallowequal": "^1.1.1",
+    "lodash.memoize": "^4.1.2",
+    "shallowequal": "^1.1.0",
+    "tslib": "^1.10.0"
+  },
+  "devDependencies": {
+    "@bigcommerce/tslint-config": "^4.0.0",
+    "@bigcommerce/validate-commits": "^2.2.0",
+    "@types/jest": "^21.1.10",
+    "check-node-version": "^3.3.0",
+    "jest": "^23.6.0",
+    "standard-version": "^4.4.0",
+    "ts-jest": "^23.10.5",
+    "tslint": "^5.18.0",
+    "typescript": "^3.5.3"
+  }
+}
