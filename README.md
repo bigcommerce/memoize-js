@@ -18,7 +18,7 @@ npm install --save @bigcommerce/memoize
 
 ## Usage
 
-To memoize a function
+To memoize a function:
 
 ```ts
 function fn(a, b) {
@@ -30,6 +30,37 @@ const result = memoizedFn({ message: 'hello' }, { message: 'world' });
 const result2 = memoizedFn({ message: 'hello' }, { message: 'world' });
 
 expect(result).toBe(result2);
+```
+
+To set a limit on the cache size:
+
+```ts
+function fn(a, b) {
+    return { a, b };
+}
+
+const memoizedFn = memoize(fn, { maxSize: 1 });
+const result = memoizedFn({ message: 'hello' }, { message: 'world' });
+
+// This call will expire the cache of the previous call because it is called with a different set of arguments
+const result2 = memoizedFn({ message: 'hello' }, { message: 'foobar' });
+const result3 = memoizedFn({ message: 'hello' }, { message: 'world' });
+
+expect(result3).not.toBe(result);
+```
+
+There is a convenience method for setting the cache size to one:
+
+```ts
+const memoizedFn = memoizeOne(fn);
+```
+
+To use a different argument comparison function:
+
+```ts
+const memoizedFn = memoize(fn, { 
+    isEqual: (a, b) => a === b,
+});
 ```
 
 
