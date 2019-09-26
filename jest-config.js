@@ -8,7 +8,9 @@ module.exports = {
         'jsx',
         'json',
     ],
-    setupTestFrameworkScriptFile: '<rootDir>/jest-setup.ts',
+    setupFilesAfterEnv: [
+        '<rootDir>/jest-setup.ts',
+    ],
     collectCoverageFrom: [
         'src/**/*.ts',
     ],

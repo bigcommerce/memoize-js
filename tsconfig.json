@@ -10,7 +10,7 @@
             "dom",
             "dom.iterable",
             "es6",
-            "scripthost",
+            "scripthost"
         ],
         "moduleResolution": "node",
         "skipLibCheck": true,
