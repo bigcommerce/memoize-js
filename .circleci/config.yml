@@ -1,3 +1,9 @@
+aliases:
+  - &node_executor
+    executor:
+      name: node/node
+      node-version: "14.18"
+
 version: 2.1
 
 orbs:
@@ -6,9 +12,7 @@ orbs:
 
 jobs:
   build:
-    executor:
-      name: node/node
-      node-version: "10"
+    <<: *node_executor
 
     steps:
       - ci/pre-setup
