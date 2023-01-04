@@ -43,7 +43,7 @@
     "@bigcommerce/validate-commits": "^2.2.0",
     "@types/jest": "^23.3.10",
     "check-node-version": "^3.3.0",
-    "jest": "^24.9.0",
+    "jest": "^29.3.1",
     "standard-version": "^8.0.1",
     "ts-jest": "^24.1.0",
     "tslint": "^5.18.0",
