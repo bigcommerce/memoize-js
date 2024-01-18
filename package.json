@@ -1,6 +1,6 @@
 {
   "name": "@bigcommerce/memoize",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A JavaScript library for memoizing the result of a pure function",
   "license": "MIT",
   "main": "lib/index.js",
