@@ -1,5 +1,4 @@
 module.exports = {
-    browser: true,
     preset: 'ts-jest',
     moduleFileExtensions: [
         'ts',
