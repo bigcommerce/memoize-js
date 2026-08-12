@@ -141,11 +141,13 @@ export default class CacheKeyResolver {
 
         const index = this._usedMaps.indexOf(recentlyUsedMap);
 
-        this._usedMaps.splice(
-            index === -1 ? 0 : index,
-            index === -1 ? 0 : 1,
-            recentlyUsedMap
-        );
+        // Move the most recently used map to the front of the stack so that
+        // the map at the end is always the least recently used one.
+        if (index !== -1) {
+            this._usedMaps.splice(index, 1);
+        }
+
+        this._usedMaps.unshift(recentlyUsedMap);
 
         if (this._usedMaps.length <= this._options.maxSize) {
             return;

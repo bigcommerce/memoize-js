@@ -135,6 +135,22 @@ describe('CacheKeyResolver', () => {
         expect(resolver.getKey('x', 'z')).toEqual('2');
     });
 
+    it('does not expire a cache key that was recently reused', () => {
+        const resolver = new CacheKeyResolver({ maxSize: 2 });
+
+        expect(resolver.getKey('a')).toEqual('1');
+        expect(resolver.getKey('b')).toEqual('2');
+
+        // Reusing ('a') makes ('b') the least recently used key
+        expect(resolver.getKey('a')).toEqual('1');
+
+        // This call expires ('b'), not ('a')
+        expect(resolver.getKey('c')).toEqual('3');
+
+        expect(resolver.getKey('a')).toEqual('1');
+        expect(resolver.getKey('b')).not.toEqual('2');
+    });
+
     it('returns cache key used count', () => {
         const resolver = new CacheKeyResolver();
 
