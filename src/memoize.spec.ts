@@ -62,6 +62,16 @@ describe('memoize', () => {
     expect(add).toHaveBeenCalledTimes(1);
   });
 
+  it('does not call function again for NaN arguments', () => {
+    const format = jest.fn((value: number) => `${value}`);
+    const memoizedFormat = memoize(format);
+
+    expect(memoizedFormat(NaN)).toBe('NaN');
+    expect(memoizedFormat(NaN)).toBe('NaN');
+
+    expect(format).toHaveBeenCalledTimes(1);
+  });
+
   it('uses custom equality function to compare arguments', () => {
     const getId = jest.fn((person: { id: number; name: string }) => person.id);
     const memoizedGetId = memoize(getId, {

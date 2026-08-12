@@ -1,5 +1,3 @@
-import shallowEqual from 'shallowequal';
-
 import {
   ChildCacheKeyMap,
   IntermediateCacheKeyMap,
@@ -8,6 +6,7 @@ import {
   RootCacheKeyMap,
   TerminalCacheKeyMap,
 } from './cache-key-maps';
+import isShallowEqual from './is-shallow-equal';
 
 function noop(): void {
   /* intentional no-op */
@@ -34,7 +33,7 @@ export default class CacheKeyResolver {
   constructor(options?: CacheKeyResolverOptions) {
     // Use destructuring defaults so that explicitly-undefined option
     // values fall back to the defaults instead of overriding them
-    const { isEqual = shallowEqual, maxSize = 0, onExpire = noop } = options ?? {};
+    const { isEqual = isShallowEqual, maxSize = 0, onExpire = noop } = options ?? {};
 
     this._options = { isEqual, maxSize, onExpire };
   }

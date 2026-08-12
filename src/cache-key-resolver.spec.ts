@@ -60,6 +60,17 @@ describe('CacheKeyResolver', () => {
     expect(resolver.getKey(undefined)).toBe('1');
   });
 
+  it('returns same cache key for NaN params', () => {
+    const resolver = new CacheKeyResolver();
+
+    expect(resolver.getKey(NaN)).toBe('1');
+    expect(resolver.getKey(NaN)).toBe('1');
+    expect(resolver.getKey('a', NaN)).toBe('2');
+    expect(resolver.getKey('a', NaN)).toBe('2');
+    expect(resolver.getKey({ value: NaN })).toBe('3');
+    expect(resolver.getKey({ value: NaN })).toBe('3');
+  });
+
   it('works with non-primitive params', () => {
     const resolver = new CacheKeyResolver();
     const personA = { name: 'Foo' };

@@ -1,7 +1,7 @@
 import lodashMemoize from 'lodash.memoize';
-import shallowEqual from 'shallowequal';
 
 import CacheKeyResolver from './cache-key-resolver';
+import isShallowEqual from './is-shallow-equal';
 
 export interface MemoizeOptions {
   maxSize?: number;
@@ -14,7 +14,7 @@ export default function memoize<T extends (...args: any[]) => any>(
 ) {
   // Use destructuring defaults so that explicitly-undefined option values
   // fall back to the defaults instead of overriding them
-  const { maxSize = 0, isEqual = shallowEqual } = options ?? {};
+  const { maxSize = 0, isEqual = isShallowEqual } = options ?? {};
   const cache = new Map();
   const resolver = new CacheKeyResolver({
     isEqual,
