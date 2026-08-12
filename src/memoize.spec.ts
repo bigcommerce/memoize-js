@@ -103,4 +103,18 @@ describe('memoizeOne', () => {
 
     expect(getId).toHaveBeenCalledTimes(1);
   });
+
+  it('ignores maxSize if provided despite the type signature', () => {
+    const add = jest.fn((a: number, b: number) => a + b);
+    const memoizedAdd = memoizeOne(add, { maxSize: 5 } as any);
+
+    memoizedAdd(1, 1);
+    memoizedAdd(2, 2);
+
+    // This call is a miss because memoizeOne always keeps only the most
+    // recent result, even if a caller sneaks in a larger maxSize
+    memoizedAdd(1, 1);
+
+    expect(add).toHaveBeenCalledTimes(3);
+  });
 });
