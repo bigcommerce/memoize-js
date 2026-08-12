@@ -1,4 +1,4 @@
-import memoize from './memoize';
+import memoize, { memoizeOne } from './memoize';
 
 describe('memoize', () => {
     it('only calls function again if parameters are different', () => {
@@ -34,5 +34,69 @@ describe('memoize', () => {
             .toEqual(4);
         expect(Array.from(cache.values()).length)
             .toEqual(1);
+    });
+
+    it('uses custom equality function to compare arguments', () => {
+        const getId = jest.fn((person: { id: number; name: string }) => person.id);
+        const memoizedGetId = memoize(getId, {
+            isEqual: (valueA, valueB) => valueA && valueB && valueA.id === valueB.id,
+        });
+
+        memoizedGetId({ id: 1, name: 'Foo' });
+        memoizedGetId({ id: 1, name: 'Bar' });
+
+        expect(getId).toHaveBeenCalledTimes(1);
+
+        memoizedGetId({ id: 2, name: 'Foo' });
+
+        expect(getId).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns same result for same set of arguments', () => {
+        const fn = jest.fn((a: string, b: string) => ({ a, b }));
+        const memoizedFn = memoize(fn);
+
+        expect(memoizedFn('hello', 'world')).toBe(memoizedFn('hello', 'world'));
+    });
+});
+
+describe('memoizeOne', () => {
+    it('only calls function again if parameters are different', () => {
+        const add = jest.fn((a: number, b: number) => (a + b));
+        const memoizedAdd = memoizeOne(add);
+
+        memoizedAdd(1, 1);
+        memoizedAdd(1, 1);
+
+        expect(add).toHaveBeenCalledTimes(1);
+    });
+
+    it('only keeps the result of the most recent call', () => {
+        const add = jest.fn((a: number, b: number) => (a + b));
+        const memoizedAdd = memoizeOne(add);
+        const cache = memoizedAdd.cache as Map<string, number>;
+
+        memoizedAdd(1, 1);
+        memoizedAdd(2, 2);
+
+        expect(Array.from(cache.values())).toEqual([4]);
+
+        // This call is a miss again because the previous call evicted it
+        memoizedAdd(1, 1);
+
+        expect(add).toHaveBeenCalledTimes(3);
+        expect(Array.from(cache.values())).toEqual([2]);
+    });
+
+    it('uses custom equality function to compare arguments', () => {
+        const getId = jest.fn((person: { id: number; name: string }) => person.id);
+        const memoizedGetId = memoizeOne(getId, {
+            isEqual: (valueA, valueB) => valueA && valueB && valueA.id === valueB.id,
+        });
+
+        memoizedGetId({ id: 1, name: 'Foo' });
+        memoizedGetId({ id: 1, name: 'Bar' });
+
+        expect(getId).toHaveBeenCalledTimes(1);
     });
 });

@@ -17,4 +17,12 @@ module.exports = {
         '\\.mock\\.ts$',
         '\\.d\\.ts$',
     ],
+    coverageThreshold: {
+        global: {
+            statements: 97,
+            branches: 90,
+            functions: 100,
+            lines: 97,
+        },
+    },
 };
