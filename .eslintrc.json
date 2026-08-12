@@ -1,0 +1,22 @@
+{
+    "root": true,
+    "extends": ["@bigcommerce/eslint-config"],
+    "parserOptions": {
+        "project": "./tsconfig.json"
+    },
+    "rules": {
+        // The rules below accommodate the pre-ESLint style of this codebase
+        // (underscore-prefixed private members, `any` in the generic memoize
+        // API, ++/continue). Revisit individually rather than in the
+        // TSLint -> ESLint migration.
+        "no-plusplus": "off",
+        "no-continue": "off",
+        "@typescript-eslint/naming-convention": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/consistent-type-assertions": "off",
+        "@typescript-eslint/no-unnecessary-condition": "off"
+    }
+}
