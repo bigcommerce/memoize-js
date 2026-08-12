@@ -7,6 +7,10 @@ module.exports = {
         'jsx',
         'json',
     ],
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        '<rootDir>/lib/',
+    ],
     setupFilesAfterEnv: [
         '<rootDir>/jest-setup.ts',
     ],

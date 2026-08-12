@@ -5,12 +5,19 @@
   "license": "MIT",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "sideEffects": false,
   "files": [
     "lib/"
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/bigcommerce/memoize-js.git"
+    "url": "https://github.com/bigcommerce/memoize-js.git"
   },
   "author": "BigCommerce",
   "bugs": {
@@ -19,7 +26,7 @@
   "homepage": "https://github.com/bigcommerce/memoize-js",
   "scripts": {
     "prebuild": "rm -rf lib",
-    "build": "tsc --outDir lib --project tsconfig.json",
+"build": "tsc --outDir lib --project tsconfig.build.json",
     "lint": "eslint 'src/**/*.ts' && tsc --noEmit",
     "prepare": "check-node-version --node '>=10' --npm '>=6' && npm run build",
     "prerelease": "git fetch --tags && npm run validate-commits && npm run lint && npm test",
