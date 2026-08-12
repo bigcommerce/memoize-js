@@ -28,7 +28,7 @@ interface ResolveResult {
 export default class CacheKeyResolver {
   private _lastId = 0;
   private _map: RootCacheKeyMap = { maps: [] };
-  private _usedMaps: TerminalCacheKeyMap[] = [];
+  private _usedMaps = new Set<TerminalCacheKeyMap>();
   private _options: Required<CacheKeyResolverOptions>;
 
   constructor(options?: CacheKeyResolverOptions) {
@@ -83,9 +83,14 @@ export default class CacheKeyResolver {
           continue;
         }
 
-        // Move the most recently used map to the top of the stack for
-        // quicker access
-        parentMap.maps.unshift(...parentMap.maps.splice(mapIndex, 1));
+        // Move the most recently used map to the top of the stack
+        // for quicker access, unless it is already at the top. The
+        // check matters because repeated calls with the same
+        // arguments always match at the top, and moving it in place
+        // would still shift the entire array twice.
+        if (mapIndex > 0) {
+          parentMap.maps.unshift(...parentMap.maps.splice(mapIndex, 1));
+        }
 
         if ((args.length === 0 || index === args.length - 1) && isTerminalCacheKeyMap(map)) {
           return { index, map, parentMap };
@@ -143,25 +148,24 @@ export default class CacheKeyResolver {
       return;
     }
 
-    const index = this._usedMaps.indexOf(recentlyUsedMap);
+    // Re-inserting the map moves it to the end of the set, so the first
+    // map in the set is always the least recently used one. Unlike an
+    // array, a set can do this without scanning or shifting the other
+    // maps.
+    this._usedMaps.delete(recentlyUsedMap);
+    this._usedMaps.add(recentlyUsedMap);
 
-    // Move the most recently used map to the front of the stack so that
-    // the map at the end is always the least recently used one.
-    if (index !== -1) {
-      this._usedMaps.splice(index, 1);
-    }
-
-    this._usedMaps.unshift(recentlyUsedMap);
-
-    if (this._usedMaps.length <= this._options.maxSize) {
+    if (this._usedMaps.size <= this._options.maxSize) {
       return;
     }
 
-    const map = this._usedMaps.pop();
+    const map = this._usedMaps.values().next().value;
 
     if (!map) {
       return;
     }
+
+    this._usedMaps.delete(map);
 
     const { cacheKey } = map;
 
