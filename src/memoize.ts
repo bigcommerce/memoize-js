@@ -2,7 +2,6 @@ import lodashMemoize from 'lodash.memoize'; // tslint:disable-line:match-default
 import shallowEqual from 'shallowequal';
 
 import CacheKeyResolver from './cache-key-resolver';
-import { Omit } from './types';
 
 export interface MemoizeOptions {
     maxSize?: number;
