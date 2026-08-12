@@ -19,6 +19,6 @@ export function isTerminalCacheKeyMap(map: ChildCacheKeyMap): map is TerminalCac
     return map.hasOwnProperty('cacheKey');
 }
 
-export function isRootCacheKeyMap(map: RootCacheKeyMap | ChildCacheKeyMap): map is RootCacheKeyMap {
+export function isChildCacheKeyMap(map: RootCacheKeyMap | ChildCacheKeyMap): map is ChildCacheKeyMap {
     return map.hasOwnProperty('parentMap');
 }
