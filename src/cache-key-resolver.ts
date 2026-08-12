@@ -3,7 +3,7 @@ import shallowEqual from 'shallowequal';
 function noop(): void {} // tslint:disable-line:no-empty
 
 import {
-    isRootCacheKeyMap,
+    isChildCacheKeyMap,
     isTerminalCacheKeyMap,
     ChildCacheKeyMap,
     IntermediateCacheKeyMap,
@@ -157,21 +157,37 @@ export default class CacheKeyResolver {
             return;
         }
 
+        const { cacheKey } = map;
+
         this._removeMap(map);
-        this._options.onExpire(map.cacheKey);
+        this._options.onExpire(cacheKey);
     }
 
     private _removeMap(map: ChildCacheKeyMap): void {
-        if (!map.parentMap) {
+        // If the map still has children, it is part of the path to other
+        // cached entries. Only remove its own cache key so that the other
+        // entries remain resolvable.
+        if (map.maps.length) {
+            delete (map as Partial<TerminalCacheKeyMap>).cacheKey;
+
             return;
         }
 
-        map.parentMap.maps.splice(map.parentMap.maps.indexOf(map), 1);
+        const { parentMap } = map;
 
-        if (isRootCacheKeyMap(map.parentMap)) {
+        if (!parentMap) {
             return;
         }
 
-        this._removeMap(map.parentMap);
+        parentMap.maps.splice(parentMap.maps.indexOf(map), 1);
+
+        // Also remove ancestors that no longer lead to any cache key,
+        // otherwise they would accumulate indefinitely as keys expire.
+        if (parentMap.maps.length === 0 &&
+            isChildCacheKeyMap(parentMap) &&
+            !isTerminalCacheKeyMap(parentMap)
+        ) {
+            this._removeMap(parentMap);
+        }
     }
 }

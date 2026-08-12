@@ -99,6 +99,42 @@ describe('CacheKeyResolver', () => {
         expect(resolver.getKey('hello', 'world')).toEqual('4');
     });
 
+    it('cleans up internal maps when cache keys expire', () => {
+        const resolver = new CacheKeyResolver({ maxSize: 1 });
+
+        for (let index = 0; index < 100; index++) {
+            resolver.getKey(`arg${index}`, 'second');
+        }
+
+        // Only the branch for the most recent call should remain
+        expect((resolver as any)._map.maps.length).toEqual(1);
+    });
+
+    it('keeps cache keys that share arguments with an expired key', () => {
+        const resolver = new CacheKeyResolver({ maxSize: 2 });
+
+        expect(resolver.getKey('a')).toEqual('1');
+        expect(resolver.getKey('a', 'b')).toEqual('2');
+
+        // This call expires the key for ('a'), which shares a path with ('a', 'b')
+        expect(resolver.getKey('c')).toEqual('3');
+
+        expect(resolver.getKey('a', 'b')).toEqual('2');
+    });
+
+    it('keeps sibling cache keys when a key expires', () => {
+        const resolver = new CacheKeyResolver({ maxSize: 2 });
+
+        expect(resolver.getKey('x', 'y')).toEqual('1');
+        expect(resolver.getKey('x', 'z')).toEqual('2');
+
+        // This call expires the key for ('x', 'y'), which shares its first
+        // argument with ('x', 'z')
+        expect(resolver.getKey('c')).toEqual('3');
+
+        expect(resolver.getKey('x', 'z')).toEqual('2');
+    });
+
     it('returns cache key used count', () => {
         const resolver = new CacheKeyResolver();
 
