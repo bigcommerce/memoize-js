@@ -1,5 +1,6 @@
-import { noop } from 'lodash';
 import shallowEqual from 'shallowequal';
+
+function noop(): void {} // tslint:disable-line:no-empty
 
 import {
     isRootCacheKeyMap,
