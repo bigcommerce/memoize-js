@@ -17,11 +17,15 @@
     "url": "https://github.com/bigcommerce/memoize-js/issues"
   },
   "homepage": "https://github.com/bigcommerce/memoize-js",
+  "engines": {
+    "node": ">=26",
+    "npm": ">=11"
+  },
   "scripts": {
     "prebuild": "rm -rf lib",
     "build": "tsc --outDir lib --project tsconfig.json",
-    "lint": "eslint 'src/**/*.ts' && tsc --noEmit",
-    "prepare": "check-node-version --node '>=10' --npm '>=6' && npm run build",
+"lint": "eslint 'src/**/*.ts' && tsc --noEmit",
+    "prepare": "check-node-version --node '>=26' --npm '>=11' && npm run build",
     "prerelease": "git fetch --tags && npm run validate-commits && npm run lint && npm test",
     "release": "standard-version",
     "postrelease": "npm publish --access public && git push --follow-tags",
