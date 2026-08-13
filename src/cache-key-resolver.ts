@@ -32,12 +32,11 @@ export default class CacheKeyResolver {
   private _options: Required<CacheKeyResolverOptions>;
 
   constructor(options?: CacheKeyResolverOptions) {
-    this._options = {
-      isEqual: shallowEqual,
-      maxSize: 0,
-      onExpire: noop,
-      ...options,
-    };
+    // Use destructuring defaults so that explicitly-undefined option
+    // values fall back to the defaults instead of overriding them
+    const { isEqual = shallowEqual, maxSize = 0, onExpire = noop } = options ?? {};
+
+    this._options = { isEqual, maxSize, onExpire };
   }
 
   getKey(...args: any[]): string {
