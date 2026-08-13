@@ -12,5 +12,13 @@ function compareNaN(valueA: any, valueB: any): boolean | undefined {
  * every call would create a new cache entry.
  */
 export default function isShallowEqual(valueA: any, valueB: any): boolean {
+  // Fast path: strictly equal values (the overwhelmingly common case for
+  // cache hits) and NaN pairs can be answered without entering
+  // shallowequal, which would otherwise route every comparison through
+  // the customizer.
+  if (valueA === valueB || (Number.isNaN(valueA) && Number.isNaN(valueB))) {
+    return true;
+  }
+
   return shallowEqual(valueA, valueB, compareNaN);
 }
