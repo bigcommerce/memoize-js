@@ -39,7 +39,7 @@ export default class CacheKeyResolver {
   }
 
   getKey(...args: any[]): string {
-    const { index, map: resolvedMap, parentMap } = this._resolveMap(...args);
+    const { index, map: resolvedMap, parentMap } = this._resolveMap(args);
     let map: TerminalCacheKeyMap;
 
     if (!resolvedMap) {
@@ -69,12 +69,12 @@ export default class CacheKeyResolver {
   }
 
   getUsedCount(...args: any[]): number {
-    const { map } = this._resolveMap(...args);
+    const { map } = this._resolveMap(args);
 
     return map && isTerminalCacheKeyMap(map) ? map.usedCount : 0;
   }
 
-  private _resolveMap(...args: any[]): ResolveResult {
+  private _resolveMap(args: any[]): ResolveResult {
     let index = 0;
     let parentMap = this._map;
 
