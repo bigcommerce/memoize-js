@@ -29,6 +29,7 @@ export default class CacheKeyResolver {
   private _map: RootCacheKeyMap = { maps: [] };
   private _usedMaps = new Set<TerminalCacheKeyMap>();
   private _options: Required<CacheKeyResolverOptions>;
+  private _useValueIndex: boolean;
 
   constructor(options?: CacheKeyResolverOptions) {
     // Use destructuring defaults so that explicitly-undefined option
@@ -36,6 +37,13 @@ export default class CacheKeyResolver {
     const { isEqual = isShallowEqual, maxSize = 0, onExpire = noop } = options ?? {};
 
     this._options = { isEqual, maxSize, onExpire };
+
+    // Maps compare keys the same way the default comparison treats
+    // everything except shallowly-equal-but-distinct objects, so sibling
+    // maps can be indexed by value for constant-time lookup. A custom
+    // comparison could equate values a Map would keep apart, so the index
+    // can only be used with the default one.
+    this._useValueIndex = isEqual === isShallowEqual;
   }
 
   getKey(...args: any[]): string {
@@ -86,6 +94,30 @@ export default class CacheKeyResolver {
     // argument at its depth.
     while (parentMap.maps.length) {
       let isMatched = false;
+      const arg = args[index];
+
+      // For a handful of siblings a linear scan is cheaper than a Map
+      // lookup, so the index only takes over once a level gets wide.
+      if (this._useValueIndex && parentMap.maps.length > 8) {
+        const indexedMap = parentMap.valueIndex?.get(arg);
+
+        if (indexedMap) {
+          if (args.length === 0 || index === args.length - 1) {
+            return { index, map: indexedMap, parentMap };
+          }
+
+          parentMap = indexedMap;
+          index++;
+          continue;
+        }
+
+        // Under the default comparison only non-null objects can match a
+        // map without being identical to its value, so for anything else
+        // an index miss is a definitive miss.
+        if (typeof arg !== 'object' || arg === null) {
+          break;
+        }
+      }
 
       for (let mapIndex = 0; mapIndex < parentMap.maps.length; mapIndex++) {
         const map = parentMap.maps[mapIndex];
@@ -142,6 +174,10 @@ export default class CacheKeyResolver {
       // next time when the function is called with the same set of
       // arguments.
       parentMap.maps.unshift(map);
+
+      if (this._useValueIndex) {
+        (parentMap.valueIndex ?? (parentMap.valueIndex = new Map())).set(map.value, map);
+      }
 
       parentMap = map;
       index++;
@@ -201,6 +237,7 @@ export default class CacheKeyResolver {
     }
 
     parentMap.maps.splice(parentMap.maps.indexOf(map), 1);
+    parentMap.valueIndex?.delete(map.value);
 
     // Also remove ancestors that no longer lead to any cache key,
     // otherwise they would accumulate indefinitely as keys expire.
