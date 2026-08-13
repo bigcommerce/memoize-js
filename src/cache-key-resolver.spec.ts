@@ -19,6 +19,30 @@ describe('CacheKeyResolver', () => {
     expect(resolver.getKey('hello', 'good', 'bye')).toBe('2');
   });
 
+  it('returns same cache key if params are a prefix of a previous call', () => {
+    const resolver = new CacheKeyResolver();
+
+    expect(resolver.getKey('hello', 'world')).toBe('1');
+    expect(resolver.getKey('hello')).toBe('2');
+    expect(resolver.getKey('hello')).toBe('2');
+    expect(resolver.getKey('hello', 'world')).toBe('1');
+  });
+
+  it('does not grow internal maps when repeatedly called with a prefix of a previous call', () => {
+    const resolver = new CacheKeyResolver();
+
+    resolver.getKey('hello', 'world');
+
+    for (let index = 0; index < 10; index++) {
+      resolver.getKey('hello');
+    }
+
+    // eslint-disable-next-line no-underscore-dangle
+    expect((resolver as any)._map.maps).toHaveLength(1);
+    // eslint-disable-next-line no-underscore-dangle
+    expect((resolver as any)._map.maps[0].maps).toHaveLength(1);
+  });
+
   it('returns same cache key if no params are provided', () => {
     const resolver = new CacheKeyResolver();
 
@@ -136,6 +160,22 @@ describe('CacheKeyResolver', () => {
     expect(resolver.getKey('x', 'z')).toBe('2');
   });
 
+  it('issues a stable cache key when an expired key is requested again', () => {
+    const resolver = new CacheKeyResolver({ maxSize: 2 });
+
+    expect(resolver.getKey('a')).toBe('1');
+    expect(resolver.getKey('a', 'b')).toBe('2');
+
+    // This call expires the key for ('a'), whose map remains in the tree
+    // because it is part of the path to ('a', 'b')
+    expect(resolver.getKey('c')).toBe('3');
+
+    // Requesting ('a') again should issue a new key once and then keep
+    // returning it
+    expect(resolver.getKey('a')).toBe('4');
+    expect(resolver.getKey('a')).toBe('4');
+  });
+
   it('does not expire a cache key that was recently reused', () => {
     const resolver = new CacheKeyResolver({ maxSize: 2 });
 
@@ -175,5 +215,18 @@ describe('CacheKeyResolver', () => {
     resolver.getKey('hello', 'world');
 
     expect(resolver.getUsedCount('hello', 'world')).toBe(2);
+  });
+
+  it('returns cache key used count for a prefix of a previous call', () => {
+    const resolver = new CacheKeyResolver();
+
+    resolver.getKey('hello', 'world');
+
+    expect(resolver.getUsedCount('hello')).toBe(0);
+
+    resolver.getKey('hello');
+
+    expect(resolver.getUsedCount('hello')).toBe(1);
+    expect(resolver.getUsedCount('hello', 'world')).toBe(1);
   });
 });

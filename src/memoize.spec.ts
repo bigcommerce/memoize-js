@@ -23,6 +23,18 @@ describe('memoize', () => {
     expect(add).toHaveBeenCalledTimes(2);
   });
 
+  it('only calls function again if parameters are a prefix of a previous call', () => {
+    const join = jest.fn((...args: string[]) => args.join(','));
+    const memoizedJoin = memoize(join);
+
+    expect(memoizedJoin('a', 'b')).toBe('a,b');
+    expect(memoizedJoin('a')).toBe('a');
+    expect(memoizedJoin('a')).toBe('a');
+    expect(memoizedJoin('a', 'b')).toBe('a,b');
+
+    expect(join).toHaveBeenCalledTimes(2);
+  });
+
   it('deletes cached result when key expires', () => {
     const add = jest.fn((a: number, b: number) => a + b);
     const memoizedAdd = memoize(add, { maxSize: 1 });

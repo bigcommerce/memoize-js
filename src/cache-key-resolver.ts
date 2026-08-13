@@ -22,7 +22,7 @@ export interface CacheKeyResolverOptions {
 interface ResolveResult {
   index: number;
   parentMap: RootCacheKeyMap | IntermediateCacheKeyMap;
-  map?: TerminalCacheKeyMap;
+  map?: ChildCacheKeyMap;
 }
 
 export default class CacheKeyResolver {
@@ -40,14 +40,26 @@ export default class CacheKeyResolver {
   }
 
   getKey(...args: any[]): string {
-    const result = this._resolveMap(...args);
-    const { index, parentMap } = result;
-    let { map } = result;
+    const { index, map: resolvedMap, parentMap } = this._resolveMap(...args);
+    let map: TerminalCacheKeyMap;
 
-    if (map?.cacheKey) {
+    if (!resolvedMap) {
+      // Cache miss: no existing map matches all the arguments, so
+      // create maps for the unmatched ones.
+      map = this._generateMap(parentMap, args.slice(index));
+    } else if (isTerminalCacheKeyMap(resolvedMap)) {
+      // Cache hit: the map already has a cache key.
+      map = resolvedMap;
       map.usedCount++;
     } else {
-      map = this._generateMap(parentMap, args.slice(index));
+      // The map matches all the arguments but has no cache key of its
+      // own, because the arguments are a prefix of a longer set of
+      // arguments seen earlier, or because its key has expired. Attach
+      // a new key to it so that the same arguments resolve to the same
+      // key from now on.
+      map = resolvedMap as TerminalCacheKeyMap;
+      map.cacheKey = `${++this._lastId}`;
+      map.usedCount = 1;
     }
 
     // Keep track of the least used map so we can remove it if the size of
@@ -60,19 +72,19 @@ export default class CacheKeyResolver {
   getUsedCount(...args: any[]): number {
     const { map } = this._resolveMap(...args);
 
-    return map ? map.usedCount : 0;
+    return map && isTerminalCacheKeyMap(map) ? map.usedCount : 0;
   }
 
   private _resolveMap(...args: any[]): ResolveResult {
     let index = 0;
     let parentMap = this._map;
 
-    // Traverse the tree to find the linked list of maps that match the
-    // arguments of the call. Each intermediate or terminal map contains a
-    // value that could be used to match with the arguments. The last map in
-    // the list (the terminal) should contain a cache key. If it can does
-    // not exist, we will return a falsy value so that the caller could
-    // handle and generate a new cache key.
+    // Traverse the tree of maps to find the map that matches the last
+    // argument of the call, and return it so that the caller can read or
+    // set its cache key. If there is no such map, return the deepest
+    // matching parent so that the caller can create the missing maps
+    // under it. Each map holds a value that is compared with the
+    // argument at its depth.
     while (parentMap.maps.length) {
       let isMatched = false;
 
@@ -87,7 +99,7 @@ export default class CacheKeyResolver {
         // quicker access
         parentMap.maps.unshift(...parentMap.maps.splice(mapIndex, 1));
 
-        if ((args.length === 0 || index === args.length - 1) && isTerminalCacheKeyMap(map)) {
+        if (args.length === 0 || index === args.length - 1) {
           return { index, map, parentMap };
         }
 
