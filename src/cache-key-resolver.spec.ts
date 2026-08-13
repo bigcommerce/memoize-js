@@ -152,6 +152,17 @@ describe('CacheKeyResolver', () => {
     expect(resolver.getKey('b')).not.toBe('2');
   });
 
+  it('falls back to default options if explicitly-undefined values are provided', () => {
+    const resolver = new CacheKeyResolver({
+      isEqual: undefined,
+      maxSize: undefined,
+      onExpire: undefined,
+    });
+
+    expect(resolver.getKey('hello')).toBe('1');
+    expect(resolver.getKey('hello')).toBe('1');
+  });
+
   it('returns cache key used count', () => {
     const resolver = new CacheKeyResolver();
 

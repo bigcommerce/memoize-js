@@ -40,6 +40,16 @@ describe('memoize', () => {
     expect(Array.from(cache.values())).toHaveLength(1);
   });
 
+  it('falls back to default options if explicitly-undefined values are provided', () => {
+    const add = jest.fn((a: number, b: number) => a + b);
+    const memoizedAdd = memoize(add, { maxSize: undefined, isEqual: undefined });
+
+    expect(memoizedAdd(1, 1)).toBe(2);
+    expect(memoizedAdd(1, 1)).toBe(2);
+
+    expect(add).toHaveBeenCalledTimes(1);
+  });
+
   it('uses custom equality function to compare arguments', () => {
     const getId = jest.fn((person: { id: number; name: string }) => person.id);
     const memoizedGetId = memoize(getId, {

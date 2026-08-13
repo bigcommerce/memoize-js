@@ -12,7 +12,9 @@ export default function memoize<T extends (...args: any[]) => any>(
   fn: T,
   options?: MemoizeOptions,
 ) {
-  const { maxSize, isEqual } = { maxSize: 0, isEqual: shallowEqual, ...options };
+  // Use destructuring defaults so that explicitly-undefined option values
+  // fall back to the defaults instead of overriding them
+  const { maxSize = 0, isEqual = shallowEqual } = options ?? {};
   const cache = new Map();
   const resolver = new CacheKeyResolver({
     isEqual,
