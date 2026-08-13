@@ -1,5 +1,10 @@
 import CacheKeyResolver from './cache-key-resolver';
 
+const isCaseInsensitivelyEqual = (valueA: any, valueB: any): boolean =>
+  typeof valueA === 'string' && typeof valueB === 'string'
+    ? valueA.toLowerCase() === valueB.toLowerCase()
+    : valueA === valueB;
+
 describe('CacheKeyResolver', () => {
   it('returns same cache key if params are equal', () => {
     const resolver = new CacheKeyResolver();
@@ -237,6 +242,57 @@ describe('CacheKeyResolver', () => {
 
     expect(resolver.getKey('hello')).toBe('1');
     expect(resolver.getKey('hello')).toBe('1');
+  });
+
+  it('resolves and expires keys correctly across many sibling values', () => {
+    const resolver = new CacheKeyResolver({ maxSize: 50 });
+
+    // Enough siblings to cross the width threshold of the value index
+    for (let index = 0; index < 50; index++) {
+      expect(resolver.getKey(`arg${index}`)).toBe(`${index + 1}`);
+    }
+
+    // Every key still resolves to the same value on a second pass
+    for (let index = 0; index < 50; index++) {
+      expect(resolver.getKey(`arg${index}`)).toBe(`${index + 1}`);
+    }
+
+    // A new key expires the least recently used one ('arg0'), which then
+    // resolves to a fresh key. Re-adding it pushes the cache over the
+    // limit again, expiring the next oldest ('arg1').
+    expect(resolver.getKey('another')).toBe('51');
+    expect(resolver.getKey('arg0')).toBe('52');
+    expect(resolver.getKey('arg0')).toBe('52');
+    expect(resolver.getKey('arg1')).toBe('53');
+
+    // Keys that were never expired keep resolving to their original value
+    expect(resolver.getKey('arg3')).toBe('4');
+  });
+
+  it('matches shallowly equal objects among many sibling values', () => {
+    const resolver = new CacheKeyResolver();
+
+    for (let index = 0; index < 20; index++) {
+      resolver.getKey({ id: index });
+    }
+
+    // A different instance with the same shape should still resolve to the
+    // existing key, even though the sibling level is wide
+    expect(resolver.getKey({ id: 0 })).toBe('1');
+    expect(resolver.getKey({ id: 19 })).toBe('20');
+  });
+
+  it('respects a custom isEqual among many sibling values', () => {
+    const resolver = new CacheKeyResolver({ isEqual: isCaseInsensitivelyEqual });
+
+    for (let index = 0; index < 20; index++) {
+      resolver.getKey(`arg${index}`);
+    }
+
+    // A custom comparison can equate values that are not identical, so
+    // these must resolve through it even when the sibling level is wide
+    expect(resolver.getKey('ARG0')).toBe('1');
+    expect(resolver.getKey('ARG19')).toBe('20');
   });
 
   it('returns cache key used count', () => {
