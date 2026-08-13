@@ -1,34 +1,34 @@
-import lodashMemoize from 'lodash.memoize'; // tslint:disable-line:match-default-export-name
+import lodashMemoize from 'lodash.memoize';
 import shallowEqual from 'shallowequal';
 
 import CacheKeyResolver from './cache-key-resolver';
 
 export interface MemoizeOptions {
-    maxSize?: number;
-    isEqual?(valueA: any, valueB: any): boolean;
+  maxSize?: number;
+  isEqual?(valueA: any, valueB: any): boolean;
 }
 
 export default function memoize<T extends (...args: any[]) => any>(
-    fn: T,
-    options?: MemoizeOptions
+  fn: T,
+  options?: MemoizeOptions,
 ) {
-    const { maxSize, isEqual } = { maxSize: 0, isEqual: shallowEqual, ...options };
-    const cache = new Map();
-    const resolver = new CacheKeyResolver({
-        isEqual,
-        maxSize,
-        onExpire: key => cache.delete(key),
-    });
-    const memoized = lodashMemoize(fn, (...args) => resolver.getKey(...args));
+  const { maxSize, isEqual } = { maxSize: 0, isEqual: shallowEqual, ...options };
+  const cache = new Map();
+  const resolver = new CacheKeyResolver({
+    isEqual,
+    maxSize,
+    onExpire: (key) => cache.delete(key),
+  });
+  const memoized = lodashMemoize(fn, (...args) => resolver.getKey(...args));
 
-    memoized.cache = cache;
+  memoized.cache = cache;
 
-    return memoized;
+  return memoized;
 }
 
 export function memoizeOne<T extends (...args: any[]) => any>(
-    fn: T,
-    options?: Omit<MemoizeOptions, 'maxSize'>
+  fn: T,
+  options?: Omit<MemoizeOptions, 'maxSize'>,
 ) {
-    return memoize(fn, { ...options, maxSize: 1 });
+  return memoize(fn, { ...options, maxSize: 1 });
 }
