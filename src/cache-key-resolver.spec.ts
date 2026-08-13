@@ -50,6 +50,16 @@ describe('CacheKeyResolver', () => {
     expect(resolver.getKey()).toBe('1');
   });
 
+  it('returns same cache key for a call with no params and a call with a single undefined param', () => {
+    const resolver = new CacheKeyResolver();
+
+    // The resolver represents the end of an argument list with an
+    // undefined value, so these two calls are indistinguishable. This
+    // test pins the current behaviour rather than mandating it.
+    expect(resolver.getKey()).toBe('1');
+    expect(resolver.getKey(undefined)).toBe('1');
+  });
+
   it('works with non-primitive params', () => {
     const resolver = new CacheKeyResolver();
     const personA = { name: 'Foo' };
@@ -121,6 +131,21 @@ describe('CacheKeyResolver', () => {
     // This call should return a new key because the previous two calls are
     // made with different sets of arguments
     expect(resolver.getKey('hello', 'world')).toBe('4');
+  });
+
+  it('notifies the caller via onExpire when a cache key expires', () => {
+    const onExpire = jest.fn();
+    const resolver = new CacheKeyResolver({ maxSize: 1, onExpire });
+
+    resolver.getKey('a');
+
+    expect(onExpire).not.toHaveBeenCalled();
+
+    // This call expires the key for ('a')
+    resolver.getKey('b');
+
+    expect(onExpire).toHaveBeenCalledTimes(1);
+    expect(onExpire).toHaveBeenCalledWith('1');
   });
 
   it('cleans up internal maps when cache keys expire', () => {
