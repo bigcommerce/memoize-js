@@ -12,6 +12,9 @@ function noop(): void {
   /* intentional no-op */
 }
 
+// Up to this many siblings, a linear scan is cheaper than a Map lookup.
+const MAX_SIBLINGS_FOR_SCAN = 8;
+
 export interface CacheKeyResolverOptions {
   maxSize?: number;
   onExpire?(key: string): void;
@@ -29,6 +32,7 @@ export default class CacheKeyResolver {
   private _map: RootCacheKeyMap = { maps: [] };
   private _usedMaps = new Set<TerminalCacheKeyMap>();
   private _options: Required<CacheKeyResolverOptions>;
+  private _useValueIndex: boolean;
 
   constructor(options?: CacheKeyResolverOptions) {
     // Use destructuring defaults so that explicitly-undefined option
@@ -36,6 +40,13 @@ export default class CacheKeyResolver {
     const { isEqual = isShallowEqual, maxSize = 0, onExpire = noop } = options ?? {};
 
     this._options = { isEqual, maxSize, onExpire };
+
+    // Maps compare keys the same way the default comparison treats
+    // everything except shallowly-equal-but-distinct objects, so sibling
+    // maps can be indexed by value for constant-time lookup. A custom
+    // comparison could equate values a Map would keep apart, so the index
+    // can only be used with the default one.
+    this._useValueIndex = isEqual === isShallowEqual;
   }
 
   getKey(...args: any[]): string {
@@ -85,41 +96,90 @@ export default class CacheKeyResolver {
     // under it. Each map holds a value that is compared with the
     // argument at its depth.
     while (parentMap.maps.length) {
-      let isMatched = false;
+      const arg = args[index];
+      const map = this._findMap(parentMap, arg);
 
-      for (let mapIndex = 0; mapIndex < parentMap.maps.length; mapIndex++) {
-        const map = parentMap.maps[mapIndex];
-
-        if (!this._options.isEqual(map.value, args[index])) {
-          continue;
-        }
-
-        // Move the most recently used map to the top of the stack
-        // for quicker access, unless it is already at the top. The
-        // check matters because repeated calls with the same
-        // arguments always match at the top, and moving it in place
-        // would still shift the entire array twice.
-        if (mapIndex > 0) {
-          parentMap.maps.unshift(...parentMap.maps.splice(mapIndex, 1));
-        }
-
-        if (args.length === 0 || index === args.length - 1) {
-          return { index, map, parentMap };
-        }
-
-        isMatched = true;
-        parentMap = map;
-        index++;
-
+      if (!map) {
         break;
       }
 
-      if (!isMatched) {
-        break;
+      if (args.length === 0 || index === args.length - 1) {
+        return { index, map, parentMap };
       }
+
+      parentMap = map;
+      index++;
     }
 
     return { index, parentMap };
+  }
+
+  // A Map matches keys by SameValueZero (identity, except that NaN equals
+  // NaN and -0 equals 0), so it agrees with the default comparison for
+  // everything except shallowly-equal-but-distinct objects. Those still
+  // need a linear scan; anything else that misses the index is a
+  // definitive miss. Without an index, the level is always scanned.
+  private _findMap(
+    parentMap: RootCacheKeyMap | IntermediateCacheKeyMap,
+    arg: any,
+  ): ChildCacheKeyMap | undefined {
+    const { maps, valueIndex } = parentMap;
+
+    // Narrow levels are scanned even if they have an index, e.g. after
+    // expiry has shrunk them, since a scan is cheaper there. Index hits
+    // do not move the map to the top of the stack, so the scan order of
+    // such a level may be stale, which only affects its speed.
+    if (valueIndex && maps.length > MAX_SIBLINGS_FOR_SCAN) {
+      const indexedMap = valueIndex.get(arg);
+
+      if (indexedMap || typeof arg !== 'object' || arg === null) {
+        return indexedMap;
+      }
+    }
+
+    // A manual loop avoids allocating a closure on every call, which
+    // findIndex(callback) would do in this hot path.
+    for (let mapIndex = 0; mapIndex < maps.length; mapIndex++) {
+      if (!this._options.isEqual(maps[mapIndex].value, arg)) {
+        continue;
+      }
+
+      // Move the most recently used map to the top of the stack for
+      // quicker access on the next linear scan, unless it is already
+      // at the top.
+      if (mapIndex > 0) {
+        maps.unshift(...maps.splice(mapIndex, 1));
+      }
+
+      return maps[0];
+    }
+
+    return undefined;
+  }
+
+  // Most levels never grow past a handful of siblings, and in a trie of
+  // multi-argument calls almost every intermediate level has exactly one.
+  // So the index is only built once a level becomes wide enough to be
+  // looked up through it, and kept up to date from then on.
+  private _indexMap(
+    parentMap: RootCacheKeyMap | IntermediateCacheKeyMap,
+    map: ChildCacheKeyMap,
+  ): void {
+    if (parentMap.valueIndex) {
+      parentMap.valueIndex.set(map.value, map);
+
+      return;
+    }
+
+    if (parentMap.maps.length <= MAX_SIBLINGS_FOR_SCAN) {
+      return;
+    }
+
+    const valueIndex = new Map<any, ChildCacheKeyMap>();
+
+    parentMap.maps.forEach((siblingMap) => valueIndex.set(siblingMap.value, siblingMap));
+
+    parentMap.valueIndex = valueIndex;
   }
 
   private _generateMap(
@@ -142,6 +202,10 @@ export default class CacheKeyResolver {
       // next time when the function is called with the same set of
       // arguments.
       parentMap.maps.unshift(map);
+
+      if (this._useValueIndex) {
+        this._indexMap(parentMap, map);
+      }
 
       parentMap = map;
       index++;
@@ -201,6 +265,7 @@ export default class CacheKeyResolver {
     }
 
     parentMap.maps.splice(parentMap.maps.indexOf(map), 1);
+    parentMap.valueIndex?.delete(map.value);
 
     // Also remove ancestors that no longer lead to any cache key,
     // otherwise they would accumulate indefinitely as keys expire.

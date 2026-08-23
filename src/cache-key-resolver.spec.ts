@@ -1,4 +1,10 @@
+import { RootCacheKeyMap } from './cache-key-maps';
 import CacheKeyResolver from './cache-key-resolver';
+
+const isCaseInsensitivelyEqual = (valueA: any, valueB: any): boolean =>
+  typeof valueA === 'string' && typeof valueB === 'string'
+    ? valueA.toLowerCase() === valueB.toLowerCase()
+    : valueA === valueB;
 
 describe('CacheKeyResolver', () => {
   it('returns same cache key if params are equal', () => {
@@ -237,6 +243,154 @@ describe('CacheKeyResolver', () => {
 
     expect(resolver.getKey('hello')).toBe('1');
     expect(resolver.getKey('hello')).toBe('1');
+  });
+
+  it('resolves and expires keys correctly across many sibling values', () => {
+    const resolver = new CacheKeyResolver({ maxSize: 50 });
+
+    // Enough siblings to cross the width threshold of the value index
+    for (let index = 0; index < 50; index++) {
+      expect(resolver.getKey(`arg${index}`)).toBe(`${index + 1}`);
+    }
+
+    // Every key still resolves to the same value on a second pass
+    for (let index = 0; index < 50; index++) {
+      expect(resolver.getKey(`arg${index}`)).toBe(`${index + 1}`);
+    }
+
+    // A new key expires the least recently used one ('arg0'), which then
+    // resolves to a fresh key. Re-adding it pushes the cache over the
+    // limit again, expiring the next oldest ('arg1').
+    expect(resolver.getKey('another')).toBe('51');
+    expect(resolver.getKey('arg0')).toBe('52');
+    expect(resolver.getKey('arg0')).toBe('52');
+    expect(resolver.getKey('arg1')).toBe('53');
+
+    // Keys that were never expired keep resolving to their original value
+    expect(resolver.getKey('arg3')).toBe('4');
+  });
+
+  it('matches shallowly equal objects among many sibling values', () => {
+    const resolver = new CacheKeyResolver();
+
+    for (let index = 0; index < 20; index++) {
+      resolver.getKey({ id: index });
+    }
+
+    // A different instance with the same shape should still resolve to the
+    // existing key, even though the sibling level is wide
+    expect(resolver.getKey({ id: 0 })).toBe('1');
+    expect(resolver.getKey({ id: 19 })).toBe('20');
+  });
+
+  it('respects a custom isEqual among many sibling values', () => {
+    const resolver = new CacheKeyResolver({ isEqual: isCaseInsensitivelyEqual });
+
+    for (let index = 0; index < 20; index++) {
+      resolver.getKey(`arg${index}`);
+    }
+
+    // A custom comparison can equate values that are not identical, so
+    // these must resolve through it even when the sibling level is wide
+    expect(resolver.getKey('ARG0')).toBe('1');
+    expect(resolver.getKey('ARG19')).toBe('20');
+  });
+
+  it('resolves NaN among many sibling values', () => {
+    const resolver = new CacheKeyResolver();
+
+    for (let index = 0; index < 20; index++) {
+      resolver.getKey(index);
+    }
+
+    // NaN is keyed via SameValueZero in the value index, which treats it
+    // the same way the default comparison does: equal to itself
+    expect(resolver.getKey(NaN)).toBe('21');
+    expect(resolver.getKey(NaN)).toBe('21');
+
+    // Existing entries are unaffected
+    expect(resolver.getKey(5)).toBe('6');
+  });
+
+  it('matches functions only by identity among many sibling values', () => {
+    const resolver = new CacheKeyResolver();
+    const functionA = () => 'a';
+    const functionB = () => 'b';
+
+    for (let index = 0; index < 20; index++) {
+      resolver.getKey(`arg${index}`);
+    }
+
+    expect(resolver.getKey(functionA)).toBe('21');
+    expect(resolver.getKey(functionA)).toBe('21');
+
+    // A different function is never equal to functionA, even though both
+    // are functions with no own enumerable properties
+    expect(resolver.getKey(functionB)).toBe('22');
+  });
+
+  it('resolves multi-argument calls through the value index', () => {
+    const resolver = new CacheKeyResolver();
+
+    // Enough siblings at the first argument's level to cross the width
+    // threshold of the value index, while a second argument still needs
+    // to be matched afterwards.
+    for (let index = 0; index < 20; index++) {
+      expect(resolver.getKey(`arg${index}`, 'suffix')).toBe(`${index + 1}`);
+    }
+
+    expect(resolver.getKey('arg0', 'suffix')).toBe('1');
+    expect(resolver.getKey('arg19', 'suffix')).toBe('20');
+  });
+
+  it('removes pruned ancestors from the value index when multi-argument keys expire', () => {
+    const onExpire = jest.fn();
+    const resolver = new CacheKeyResolver({ maxSize: 20, onExpire });
+
+    for (let index = 0; index < 20; index++) {
+      resolver.getKey(`arg${index}`, 'suffix');
+    }
+
+    // This call expires ('arg0', 'suffix'). The map for 'arg0' no longer
+    // leads to any cache key, so it is pruned from the wide root level.
+    expect(resolver.getKey('another', 'suffix')).toBe('21');
+    expect(onExpire).toHaveBeenCalledWith('1');
+
+    // eslint-disable-next-line no-underscore-dangle
+    const rootMap: RootCacheKeyMap = (resolver as any)._map;
+
+    expect(rootMap.maps).toHaveLength(20);
+    expect(rootMap.valueIndex?.has('arg0')).toBe(false);
+
+    // Re-adding 'arg0' attaches a new map to the root rather than reusing
+    // the pruned one
+    expect(resolver.getKey('arg0', 'other')).toBe('22');
+    expect(resolver.getKey('arg0', 'other')).toBe('22');
+    expect(rootMap.valueIndex?.get('arg0')).toBe(rootMap.maps.find((map) => map.value === 'arg0'));
+  });
+
+  it('only builds a value index for levels with many sibling values', () => {
+    const resolver = new CacheKeyResolver();
+
+    for (let index = 0; index < 8; index++) {
+      resolver.getKey(`arg${index}`, 'suffix');
+    }
+
+    // eslint-disable-next-line no-underscore-dangle
+    const rootMap: RootCacheKeyMap = (resolver as any)._map;
+
+    // Neither the root nor the single-child levels below it are wide
+    // enough to be looked up through an index
+    expect(rootMap.valueIndex).toBeUndefined();
+    expect(rootMap.maps[0].valueIndex).toBeUndefined();
+
+    // Adding a ninth sibling builds the index from every existing sibling
+    resolver.getKey('arg8', 'suffix');
+
+    expect(rootMap.valueIndex?.size).toBe(9);
+    expect(rootMap.maps[0].valueIndex).toBeUndefined();
+    expect(resolver.getKey('arg0', 'suffix')).toBe('1');
+    expect(resolver.getKey('arg8', 'suffix')).toBe('9');
   });
 
   it('returns cache key used count', () => {

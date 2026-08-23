@@ -1,9 +1,17 @@
 export interface RootCacheKeyMap {
   maps: ChildCacheKeyMap[];
+  // Index of child maps by their value, for constant-time lookup when the
+  // default comparison is in use. Values compared by identity (or NaN)
+  // resolve through this index; only shallowly-equal-but-distinct objects
+  // need to fall back to scanning `maps`. Only built once a level has
+  // enough children to be looked up through it, and kept up to date from
+  // then on, even if the level shrinks again.
+  valueIndex?: Map<any, ChildCacheKeyMap>;
 }
 
 export interface IntermediateCacheKeyMap {
   maps: ChildCacheKeyMap[];
+  valueIndex?: Map<any, ChildCacheKeyMap>;
   parentMap: RootCacheKeyMap | IntermediateCacheKeyMap;
   usedCount: number;
   value: any;
