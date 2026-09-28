@@ -239,6 +239,40 @@ describe('CacheKeyResolver', () => {
     expect(resolver.getKey('hello')).toBe('1');
   });
 
+  it('treats a maxSize below one as no limit', () => {
+    const fractional = new CacheKeyResolver({ maxSize: 0.5 });
+
+    expect(fractional.getKey('a')).toBe('1');
+    expect(fractional.getKey('a')).toBe('1');
+
+    const negative = new CacheKeyResolver({ maxSize: -1 });
+
+    expect(negative.getKey('a')).toBe('1');
+    expect(negative.getKey('a')).toBe('1');
+  });
+
+  it('treats a non-finite maxSize as no limit', () => {
+    const infinite = new CacheKeyResolver({ maxSize: Infinity });
+
+    expect(infinite.getKey('a')).toBe('1');
+    expect(infinite.getKey('a')).toBe('1');
+
+    // With "no limit" the resolver should not track keys for expiry at all
+    // eslint-disable-next-line no-underscore-dangle
+    expect((infinite as any)._usedMaps.size).toBe(0);
+  });
+
+  it('floors a fractional maxSize above one', () => {
+    const resolver = new CacheKeyResolver({ maxSize: 2.7 });
+
+    expect(resolver.getKey('a')).toBe('1');
+    expect(resolver.getKey('b')).toBe('2');
+    expect(resolver.getKey('c')).toBe('3');
+
+    // maxSize 2.7 behaves as 2, so ('a') has expired by now
+    expect(resolver.getKey('a')).toBe('4');
+  });
+
   it('returns cache key used count', () => {
     const resolver = new CacheKeyResolver();
 

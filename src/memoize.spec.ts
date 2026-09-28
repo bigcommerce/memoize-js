@@ -72,6 +72,16 @@ describe('memoize', () => {
     expect(format).toHaveBeenCalledTimes(1);
   });
 
+  it('still memoizes if maxSize is fractional or negative', () => {
+    const add = jest.fn((a: number, b: number) => a + b);
+    const memoizedAdd = memoize(add, { maxSize: 0.5 });
+
+    memoizedAdd(1, 1);
+    memoizedAdd(1, 1);
+
+    expect(add).toHaveBeenCalledTimes(1);
+  });
+
   it('uses custom equality function to compare arguments', () => {
     const getId = jest.fn((person: { id: number; name: string }) => person.id);
     const memoizedGetId = memoize(getId, {

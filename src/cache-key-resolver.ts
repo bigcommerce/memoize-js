@@ -35,7 +35,13 @@ export default class CacheKeyResolver {
     // values fall back to the defaults instead of overriding them
     const { isEqual = isShallowEqual, maxSize = 0, onExpire = noop } = options ?? {};
 
-    this._options = { isEqual, maxSize, onExpire };
+    // A fractional maxSize would otherwise expire a key on every call,
+    // negative and NaN values are meaningless, and Infinity would track
+    // every key without ever expiring one. Floor fractions and treat
+    // anything below 1 or non-finite as "no limit".
+    const normalizedMaxSize = Number.isFinite(maxSize) ? Math.max(0, Math.floor(maxSize)) : 0;
+
+    this._options = { isEqual, maxSize: normalizedMaxSize, onExpire };
   }
 
   getKey(...args: any[]): string {
