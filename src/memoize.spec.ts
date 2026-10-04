@@ -94,6 +94,21 @@ describe('memoize', () => {
 
     expect(memoizedFn('hello', 'world')).toBe(memoizedFn('hello', 'world'));
   });
+
+  it('calls function again for a different date', () => {
+    const getYear = jest.fn((date: Date) => date.getUTCFullYear());
+    const memoizedGetYear = memoize(getYear);
+
+    expect(memoizedGetYear(new Date('2020-01-01'))).toBe(2020);
+    expect(memoizedGetYear(new Date('2021-01-01'))).toBe(2021);
+  });
+
+  it('calls function again for an array after a shallowly equal object', () => {
+    const isArray = memoize((value: unknown) => Array.isArray(value));
+
+    expect(isArray({})).toBe(false);
+    expect(isArray([])).toBe(true);
+  });
 });
 
 describe('memoizeOne', () => {
