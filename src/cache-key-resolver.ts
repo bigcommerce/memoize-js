@@ -68,6 +68,24 @@ export default class CacheKeyResolver {
     return map.cacheKey;
   }
 
+  // Unlike getKey, this never issues a new key, so a miss leaves the cache
+  // untouched. A hit counts as a use, the same way it does in getKey.
+  findKey(...args: any[]): string | undefined {
+    const { map } = this._resolveMap(args);
+
+    if (!map || !isTerminalCacheKeyMap(map)) {
+      return undefined;
+    }
+
+    map.usedCount++;
+
+    // The number of tracked maps is unchanged, so this only marks the map
+    // as the most recently used one without expiring any other.
+    this._removeLeastUsedMap(map);
+
+    return map.cacheKey;
+  }
+
   getUsedCount(...args: any[]): number {
     const { map } = this._resolveMap(args);
 

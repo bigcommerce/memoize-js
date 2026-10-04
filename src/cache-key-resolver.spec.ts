@@ -239,6 +239,38 @@ describe('CacheKeyResolver', () => {
     expect(resolver.getKey('hello')).toBe('1');
   });
 
+  it('finds an existing cache key without issuing a new one', () => {
+    const resolver = new CacheKeyResolver();
+
+    expect(resolver.findKey('hello')).toBeUndefined();
+    expect(resolver.getKey('hello', 'world')).toBe('1');
+
+    // A prefix of a previous call has no key of its own yet
+    expect(resolver.findKey('hello')).toBeUndefined();
+    expect(resolver.findKey('hello', 'world')).toBe('1');
+    expect(resolver.getUsedCount('hello', 'world')).toBe(2);
+
+    // Misses did not issue keys, so the next key is still sequential
+    expect(resolver.getKey('foo')).toBe('2');
+  });
+
+  it('marks a found cache key as recently used without expiring others', () => {
+    const onExpire = jest.fn();
+    const resolver = new CacheKeyResolver({ maxSize: 2, onExpire });
+
+    resolver.getKey('a');
+    resolver.getKey('b');
+
+    expect(resolver.findKey('a')).toBe('1');
+    expect(resolver.findKey('c')).toBeUndefined();
+    expect(onExpire).not.toHaveBeenCalled();
+
+    // ('b') is now the least recently used key, so it expires first
+    resolver.getKey('c');
+
+    expect(onExpire).toHaveBeenCalledWith('2');
+  });
+
   it('returns cache key used count', () => {
     const resolver = new CacheKeyResolver();
 

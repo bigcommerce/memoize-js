@@ -32,9 +32,8 @@
     "validate-commits": "validate-commits"
   },
   "dependencies": {
-    "@types/lodash.memoize": "^4.1.9",
+    "@types/lodash": "^4.17.25",
     "@types/shallowequal": "^1.1.5",
-    "lodash.memoize": "^4.1.2",
     "shallowequal": "^1.1.0",
     "tslib": "^2.8.1"
   },
