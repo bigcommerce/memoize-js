@@ -8,6 +8,24 @@ interface Person {
 const isSamePerson = (valueA?: Person, valueB?: Person): boolean =>
   valueA?.id === valueB?.id && valueA !== undefined;
 
+// Counts down to zero by calling its memoized self, so every call with a
+// positive value makes a nested call before its own result is cached
+// eslint-disable-next-line @typescript-eslint/no-use-before-define
+const countDown = (value: number): number => (value > 0 ? memoizedCountDown(value - 1) + 1 : 0);
+const memoizedCountDown = memoize(countDown, { maxSize: 1 });
+
+function parseLength(value: string): number {
+  if (value === 'invalid') {
+    throw new Error('Invalid value');
+  }
+
+  return value.length;
+}
+
+function getName(this: { name: string }): string {
+  return this.name;
+}
+
 describe('memoize', () => {
   it('only calls function again if parameters are different', () => {
     const add = jest.fn((a: number, b: number) => a + b);
@@ -93,6 +111,38 @@ describe('memoize', () => {
     const memoizedFn = memoize(fn);
 
     expect(memoizedFn('hello', 'world')).toBe(memoizedFn('hello', 'world'));
+  });
+
+  it('keeps the cache within maxSize when the function calls itself', () => {
+    for (let value = 0; value < 50; value++) {
+      expect(memoizedCountDown(value)).toBe(value);
+    }
+
+    // Otherwise every outer call would leave its result in the cache after
+    // a nested call had already expired its key
+    expect(memoizedCountDown.cache).toHaveProperty('size', 1);
+  });
+
+  it('does not expire cached results when a call throws', () => {
+    const parse = jest.fn(parseLength);
+    const memoizedParse = memoize(parse, { maxSize: 2 });
+
+    memoizedParse('a');
+    memoizedParse('bb');
+
+    expect(() => memoizedParse('invalid')).toThrow('Invalid value');
+    expect(() => memoizedParse('invalid')).toThrow('Invalid value');
+
+    // Both earlier results should still be cached
+    expect(memoizedParse('a')).toBe(1);
+    expect(memoizedParse('bb')).toBe(2);
+    expect(parse).toHaveBeenCalledTimes(4);
+  });
+
+  it('calls function with the same this as the memoized function', () => {
+    const memoizedGetName = memoize(getName);
+
+    expect(memoizedGetName.call({ name: 'Foo' })).toBe('Foo');
   });
 });
 
